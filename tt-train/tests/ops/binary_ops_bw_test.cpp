@@ -202,6 +202,50 @@ TEST_F(BinaryOpsBackwardTest, MaxSameShape) {
     EXPECT_TRUE(xt::allclose(b_grad, expected_b_grad, 1e-3F, 1e-3F));
 }
 
+TEST_F(BinaryOpsBackwardTest, MinBroadcastBackward) {
+    auto* device = &autograd::ctx().get_device();
+    xt::xarray<float> data_a = {{{{1.F, 5.F, 3.F, 2.F}}}};
+    xt::xarray<float> data_b = xt::ones<float>({2, 1, 3, 4}) * 4.0F;
+
+    auto a = autograd::create_tensor(core::from_xtensor(data_a, device), /* requires_grad */ true);
+    auto b = autograd::create_tensor(core::from_xtensor(data_b, device), /* requires_grad */ true);
+
+    auto out = min(a, b);
+    out->backward();
+
+    auto a_grad = core::to_xtensor(a->get_grad());
+    auto b_grad = core::to_xtensor(b->get_grad());
+
+    EXPECT_EQ(a_grad.shape(), data_a.shape());
+    EXPECT_EQ(b_grad.shape(), data_b.shape());
+
+    // a is the minimum for all 4 channels, repeated over 2 * 3 broadcast positions.
+    EXPECT_TRUE(xt::allclose(a_grad, xt::ones_like(data_a) * 6.0F));
+    EXPECT_TRUE(xt::allclose(b_grad, xt::zeros_like(data_b)));
+}
+
+TEST_F(BinaryOpsBackwardTest, MaxBroadcastBackward) {
+    auto* device = &autograd::ctx().get_device();
+    xt::xarray<float> data_a = {{{{1.F, 5.F, 3.F, 2.F}}}};
+    xt::xarray<float> data_b = xt::ones<float>({2, 1, 3, 4}) * 4.0F;
+
+    auto a = autograd::create_tensor(core::from_xtensor(data_a, device), /* requires_grad */ true);
+    auto b = autograd::create_tensor(core::from_xtensor(data_b, device), /* requires_grad */ true);
+
+    auto out = max(a, b);
+    out->backward();
+
+    auto a_grad = core::to_xtensor(a->get_grad());
+    auto b_grad = core::to_xtensor(b->get_grad());
+
+    EXPECT_EQ(a_grad.shape(), data_a.shape());
+    EXPECT_EQ(b_grad.shape(), data_b.shape());
+
+    EXPECT_TRUE(xt::allclose(a_grad, xt::zeros_like(data_a)));
+    // b is the maximum in every element; a is broadcast across 2 * 3 positions.
+    EXPECT_TRUE(xt::allclose(b_grad, xt::ones_like(data_b)));
+}
+
 // ============================================================================
 // Parametrized broadcast backward tests
 // ============================================================================
