@@ -219,9 +219,13 @@ TEST_F(BinaryOpsBackwardTest, MinBroadcastBackward) {
     EXPECT_EQ(a_grad.shape(), data_a.shape());
     EXPECT_EQ(b_grad.shape(), data_b.shape());
 
-    // a is the minimum for all 4 channels, repeated over 2 * 3 broadcast positions.
-    EXPECT_TRUE(xt::allclose(a_grad, xt::ones_like(data_a) * 6.0F));
-    EXPECT_TRUE(xt::allclose(b_grad, xt::zeros_like(data_b)));
+    xt::xarray<float> expected_a_grad = {{{{6.F, 0.F, 6.F, 6.F}}}};
+    xt::xarray<float> expected_b_grad = xt::zeros_like(data_b);
+    for (size_t i = 0; i < expected_b_grad.size(); i += 4) {
+        expected_b_grad.flat(i + 1) = 1.F;
+    }
+    EXPECT_TRUE(xt::allclose(a_grad, expected_a_grad));
+    EXPECT_TRUE(xt::allclose(b_grad, expected_b_grad));
 }
 
 TEST_F(BinaryOpsBackwardTest, MaxBroadcastBackward) {
@@ -241,9 +245,13 @@ TEST_F(BinaryOpsBackwardTest, MaxBroadcastBackward) {
     EXPECT_EQ(a_grad.shape(), data_a.shape());
     EXPECT_EQ(b_grad.shape(), data_b.shape());
 
-    EXPECT_TRUE(xt::allclose(a_grad, xt::zeros_like(data_a)));
-    // b is the maximum in every element; a is broadcast across 2 * 3 positions.
-    EXPECT_TRUE(xt::allclose(b_grad, xt::ones_like(data_b)));
+    xt::xarray<float> expected_a_grad = {{{{0.F, 6.F, 0.F, 0.F}}}};
+    xt::xarray<float> expected_b_grad = xt::ones_like(data_b);
+    for (size_t i = 0; i < expected_b_grad.size(); i += 4) {
+        expected_b_grad.flat(i + 1) = 0.F;
+    }
+    EXPECT_TRUE(xt::allclose(a_grad, expected_a_grad));
+    EXPECT_TRUE(xt::allclose(b_grad, expected_b_grad));
 }
 
 // ============================================================================
